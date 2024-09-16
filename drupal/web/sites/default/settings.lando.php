@@ -4,17 +4,35 @@
  * Load database credentials from Lando app environment.
  */
 $lando_info = json_decode(getenv('LANDO_INFO'), TRUE);
-$databases['default']['default'] = [
-  'driver' => 'mysql',
-  'database' => $lando_info['database']['creds']['database'],
-  'username' => $lando_info['database']['creds']['user'],
-  'password' => $lando_info['database']['creds']['password'],
-  'host' => $lando_info['database']['internal_connection']['host'],
-  'port' => $lando_info['database']['internal_connection']['port'],
-];
+
+if ($lando_info) {
+  $service_info_from_lando_env = function ($service) use ($lando_info) {
+    foreach ($lando_info as $service_info) {
+      if (isset($service_info['service']) && $service_info['service'] === $service) {
+        return $service_info;
+      }
+    }
+
+    return NULL;
+  };
+
+  $db_info = $service_info_from_lando_env('database');
+
+  if ($db_info && isset($db_info['creds']) && isset($db_info['internal_connection'])) {
+    $databases['default']['default'] = [
+      'driver' => 'mysql',
+      'database' => $db_info['creds']['database'],
+      'username' => $db_info['creds']['user'],
+      'password' => $db_info['creds']['password'],
+      'host' => $db_info['internal_connection']['host'],
+      'port' => $db_info['internal_connection']['port'],
+    ];
+  }
+}
+
 
 // Use the hash_salt setting from Lando.
-$settings['hash_salt'] = getenv('HASH_SALT');
+$settings['hash_salt'] = getenv('HASH_SALT') ? getenv('HASH_SALT') : 'random_hash_salt';
 
 // Skip file system permissions hardening when using local development with Lando.
 $settings['skip_permissions_hardening'] = TRUE;
